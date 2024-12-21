@@ -1,0 +1,38 @@
+from google.colab import files
+import os
+from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
+import torch
+import librosa
+
+# Upload the audio file
+uploaded = files.upload()
+
+# Get the file name of the uploaded file
+audio_file = list(uploaded.keys())[0]
+
+# Check if the file exists in the current working directory
+if not os.path.exists(audio_file):
+    raise FileNotFoundError(f"Audio file not found at {audio_file}")
+
+# Load the Wav2Vec2 model and processor
+processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
+model = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-base-960h")
+
+# Load the audio file using librosa (ensure the sample rate is 16000)
+audio_input, sr = librosa.load(audio_file, sr=16000)
+
+# Process the audio input using the processor
+input_values = processor(audio_input, return_tensors="pt").input_values
+
+# Perform inference (forward pass)
+with torch.no_grad():
+    logits = model(input_values).logits
+
+# Convert the logits to predicted ids (the output is a sequence of tokens)
+predicted_ids = torch.argmax(logits, dim=-1)
+
+# Decode the predicted ids to human-readable text
+transcription = processor.decode(predicted_ids[0])
+
+# Print the transcription
+print("Transcription:", transcription)
